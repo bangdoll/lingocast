@@ -477,8 +477,8 @@
         <!-- 控制面板 -->
         <div class="controls-wrapper">
             <div class="mode-toggle-group">
-                <button class="mode-btn active" id="modeTalkBtn" onclick="setMode('talk')">手動對講模式</button>
-                <button class="mode-btn" id="modeStreamBtn" onclick="setMode('stream')">GPT-Realtime 串流同譯</button>
+                <button class="mode-btn" id="modeTalkBtn" onclick="setMode('talk')">手動對講模式</button>
+                <button class="mode-btn active" id="modeStreamBtn" onclick="setMode('stream')">GPT-Realtime 串流同譯</button>
             </div>
 
             <div style="display: flex; gap: 15px;">
@@ -567,7 +567,7 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
-        let recordingMode = 'talk'; // 'talk' or 'stream'
+        let recordingMode = 'stream'; // 'talk' or 'stream'
         let streamInterval = null;
         const host = window.location.origin;
 
