@@ -102,7 +102,7 @@ def translate_text(text: str, custom_dict: dict) -> str:
             temperature=0.2
         )
         translated_result = completion.choices[0].message.content.strip()
-        return cc_s2t.convert(translated_result)
+        return convert_to_traditional(translated_result)
     except Exception as e:
         return f"翻譯失敗: {str(e)}"
 
@@ -143,7 +143,7 @@ async def translate_audio(file: UploadFile = File(...)):
             response_format="verbose_json"
         )
         
-        transcript = cc_s2t.convert(transcription.text.strip())
+        transcript = convert_to_traditional(transcription.text.strip())
         if not transcript:
             return {"original": "", "translated": ""}
             
