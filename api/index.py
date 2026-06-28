@@ -8,8 +8,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 from dotenv import load_dotenv
-from opencc import OpenCC
-
 # 載入同目錄或上級目錄下的 .env 配置文件
 BASE_DIR = Path(__file__).parent
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
@@ -17,7 +15,21 @@ load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-cc_s2t = OpenCC('s2t')
+
+try:
+    from opencc import OpenCC
+    cc_s2t = OpenCC('s2t')
+except Exception as e:
+    print(f"⚠️ OpenCC 載入失敗（可能是 Vercel Serverless 環境限制）: {e}")
+    cc_s2t = None
+
+def convert_to_traditional(text):
+    if cc_s2t:
+        try:
+            return cc_s2t.convert(text)
+        except Exception:
+            pass
+    return text
 
 app = FastAPI(title="LingoCast - AI 即時雙語同聲翻譯與投屏系統")
 
