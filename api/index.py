@@ -341,9 +341,14 @@ try:
                         transcript = convert_to_traditional(resp.json().get("text", "").strip())
                     else:
                         err_msg = resp.json().get("error", {}).get("message", resp.text)
+                        # 自癒診斷：將金鑰的長度與掩碼輸出，方便用戶核對是否為舊 Key 或傳輸殘留
+                        key_len = len(openai_key) if openai_key else 0
+                        key_prefix = openai_key[:12] if openai_key else 'None'
+                        key_suffix = openai_key[-6:] if openai_key else 'None'
+                        diag_msg = f"{err_msg} [金鑰診斷 - 長度: {key_len}, 前綴: {key_prefix}, 後綴: {key_suffix}]"
                         return JSONResponse(
                             status_code=400,
-                            content={"error": f"OpenAI 轉錄失敗 ({resp.status_code}): {err_msg}"}
+                            content={"error": f"OpenAI 轉錄失敗 ({resp.status_code}): {diag_msg}"}
                         )
                 except Exception as e:
                     return JSONResponse(status_code=500, content={"error": f"連線 OpenAI 語音轉文字超時: {str(e)}"})
