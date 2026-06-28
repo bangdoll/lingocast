@@ -522,7 +522,7 @@
     <div class="modal-overlay" id="keyModalOverlay">
         <div class="modal-card" style="max-width: 480px;">
             <div class="modal-header">
-                <h2>🔑 設定 Groq API 金鑰</h2>
+                <h2>🔑 設定 API 金鑰</h2>
                 <button class="close-btn" onclick="closeKeyModal()">&times;</button>
             </div>
             
@@ -530,13 +530,24 @@
                 <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; line-height: 1.5;">
                     金鑰將**僅保存在您的本地瀏覽器 (localStorage)** 中，不會上傳或存儲於伺服器。每次同譯時，前端會動態將此金鑰傳遞給 API，以完全保護您的金鑰隱私。
                 </p>
-                <div style="display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
-                    <input type="password" id="apiKeyInput" placeholder="gsk_..." style="flex: 1; background: transparent; border: none; color: white; font-size: 16px; outline: none; box-shadow: none;">
-                    <button id="toggleVisibleBtn" onclick="toggleKeyVisibility()" style="background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer;">👁️</button>
+                
+                <!-- OpenAI Key Input -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 14px; color: var(--primary); margin-bottom: 5px; font-weight: bold;">OpenAI API 金鑰（優先使用，翻譯最精準）</label>
+                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                        <input type="password" id="openaiKeyInput" placeholder="sk-proj-..." style="flex: 1; background: transparent; border: none; color: white; font-size: 16px; outline: none; box-shadow: none;">
+                        <button id="toggleOpenAIVisibleBtn" onclick="toggleOpenAIKeyVisibility()" style="background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer;">👁️</button>
+                    </div>
                 </div>
-                <p style="font-size: 12px; color: var(--primary); margin-top: 10px;">
-                    💡 尚未擁有金鑰？請至 <a href="https://console.groq.com/" target="_blank" style="color: var(--primary); text-decoration: underline;">console.groq.com</a> 免費申請。
-                </p>
+
+                <!-- Groq Key Input -->
+                <div>
+                    <label style="display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 5px; font-weight: bold;">Groq API 金鑰（免費額度，低延遲）</label>
+                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                        <input type="password" id="apiKeyInput" placeholder="gsk_..." style="flex: 1; background: transparent; border: none; color: white; font-size: 16px; outline: none; box-shadow: none;">
+                        <button id="toggleVisibleBtn" onclick="toggleKeyVisibility()" style="background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer;">👁️</button>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -664,9 +675,13 @@
 
             try {
                 const userApiKey = localStorage.getItem('groq_api_key') || '';
+                const userOpenAIKey = localStorage.getItem('openai_api_key') || '';
                 const headers = {};
                 if (userApiKey) {
                     headers['X-Groq-API-Key'] = userApiKey;
+                }
+                if (userOpenAIKey) {
+                    headers['X-OpenAI-API-Key'] = userOpenAIKey;
                 }
 
                 const res = await fetch(`${host}/api/translate-audio`, {
@@ -678,13 +693,13 @@
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
                     const errMsg = errData.error || `HTTP 錯誤 ${res.status}`;
-                    renderSubtitle("❌ 翻譯服務異常", `${errMsg} (請確認 Vercel 專案設定中是否已配置 GROQ_API_KEY)`);
+                    renderSubtitle("❌ 翻譯服務異常", `${errMsg} (請確認是否已點選右上角「🔑 設定金鑰」配置了有效的金鑰)`);
                     return;
                 }
                 
                 const data = await res.json();
                 if (data.error) {
-                    renderSubtitle("❌ 翻譯服務異常", `${data.error} (請確認 Vercel 專案設定中是否已配置 GROQ_API_KEY)`);
+                    renderSubtitle("❌ 翻譯服務異常", `${data.error} (請確認是否已點選右上角「🔑 設定金鑰」配置了有效的金鑰)`);
                 } else if (data.original && data.translated) {
                     renderSubtitle(data.original, data.translated);
                 }
@@ -726,8 +741,12 @@
         function openKeyModal() {
             const overlay = document.getElementById('keyModalOverlay');
             overlay.classList.add('active');
-            const savedKey = localStorage.getItem('groq_api_key') || '';
-            document.getElementById('apiKeyInput').value = savedKey;
+            
+            const savedGroqKey = localStorage.getItem('groq_api_key') || '';
+            document.getElementById('apiKeyInput').value = savedGroqKey;
+            
+            const savedOpenAIKey = localStorage.getItem('openai_api_key') || '';
+            document.getElementById('openaiKeyInput').value = savedOpenAIKey;
         }
 
         function closeKeyModal() {
@@ -746,11 +765,26 @@
             }
         }
 
+        function toggleOpenAIKeyVisibility() {
+            const input = document.getElementById('openaiKeyInput');
+            const btn = document.getElementById('toggleOpenAIVisibleBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁️';
+            }
+        }
+
         function saveApiKey() {
-            const input = document.getElementById('apiKeyInput');
-            const key = input.value.trim();
-            localStorage.setItem('groq_api_key', key);
-            alert("Groq API 金鑰已儲存至您的本地瀏覽器！");
+            const groqKey = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('groq_api_key', groqKey);
+            
+            const openaiKey = document.getElementById('openaiKeyInput').value.trim();
+            localStorage.setItem('openai_api_key', openaiKey);
+            
+            alert("API 金鑰已儲存至您的本地瀏覽器！");
             closeKeyModal();
         }
 
