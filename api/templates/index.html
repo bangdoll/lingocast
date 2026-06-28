@@ -441,7 +441,10 @@
                 <p>即時同聲雙語字幕系統</p>
             </div>
         </div>
-        <div class="nav-actions">
+        <div class="nav-actions" style="display: flex; gap: 12px;">
+            <button class="btn-secondary" onclick="openKeyModal()">
+                <span>🔑</span> 設定金鑰
+            </button>
             <button class="btn-secondary" onclick="openDictModal()">
                 <span>⚙️</span> 自訂字典
             </button>
@@ -463,7 +466,12 @@
 
         <!-- 字幕展示區 -->
         <div class="subtitle-stage" id="subtitleStage">
-            <div class="no-signal" id="noSignalText">🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...</div>
+            <div class="no-signal" id="noSignalText">
+                🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...
+                <div style="font-size: 14px; margin-top: 10px; color: var(--text-muted);">
+                    🔑 第一次使用？請先點擊右上角「設定金鑰」填入您的 Groq API Key。
+                </div>
+            </div>
         </div>
 
         <!-- 控制面板 -->
@@ -506,6 +514,34 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeDictModal()">取消</button>
                 <button class="btn-primary" onclick="saveDict()">儲存字典</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 金鑰設定 Modal -->
+    <div class="modal-overlay" id="keyModalOverlay">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2>🔑 設定 Groq API 金鑰</h2>
+                <button class="close-btn" onclick="closeKeyModal()">&times;</button>
+            </div>
+            
+            <div style="padding: 15px 0;">
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; line-height: 1.5;">
+                    金鑰將**僅保存在您的本地瀏覽器 (localStorage)** 中，不會上傳或存儲於伺服器。每次同譯時，前端會動態將此金鑰傳遞給 API，以完全保護您的金鑰隱私。
+                </p>
+                <div style="display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <input type="password" id="apiKeyInput" placeholder="gsk_..." style="flex: 1; background: transparent; border: none; color: white; font-size: 16px; outline: none; box-shadow: none;">
+                    <button id="toggleVisibleBtn" onclick="toggleKeyVisibility()" style="background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer;">👁️</button>
+                </div>
+                <p style="font-size: 12px; color: var(--primary); margin-top: 10px;">
+                    💡 尚未擁有金鑰？請至 <a href="https://console.groq.com/" target="_blank" style="color: var(--primary); text-decoration: underline;">console.groq.com</a> 免費申請。
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeKeyModal()">取消</button>
+                <button class="btn-primary" onclick="saveApiKey()">儲存金鑰</button>
             </div>
         </div>
     </div>
@@ -627,8 +663,15 @@
             formData.append("file", blob, "recording.webm");
 
             try {
+                const userApiKey = localStorage.getItem('groq_api_key') || '';
+                const headers = {};
+                if (userApiKey) {
+                    headers['X-Groq-API-Key'] = userApiKey;
+                }
+
                 const res = await fetch(`${host}/api/translate-audio`, {
                     method: "POST",
+                    headers: headers,
                     body: formData
                 });
                 
@@ -679,6 +722,38 @@
             stage.appendChild(box);
         }
 
+        // 金鑰彈窗邏輯
+        function openKeyModal() {
+            const overlay = document.getElementById('keyModalOverlay');
+            overlay.classList.add('active');
+            const savedKey = localStorage.getItem('groq_api_key') || '';
+            document.getElementById('apiKeyInput').value = savedKey;
+        }
+
+        function closeKeyModal() {
+            document.getElementById('keyModalOverlay').classList.remove('active');
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('apiKeyInput');
+            const btn = document.getElementById('toggleVisibleBtn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🔒';
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁️';
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            const key = input.value.trim();
+            localStorage.setItem('groq_api_key', key);
+            alert("Groq API 金鑰已儲存至您的本地瀏覽器！");
+            closeKeyModal();
+        }
+
         // 字典彈窗邏輯
         function openDictModal() {
             const overlay = document.getElementById('dictModalOverlay');
@@ -700,7 +775,14 @@
 
         function clearScreen() {
             const stage = document.getElementById('subtitleStage');
-            stage.innerHTML = '<div class="no-signal" id="noSignalText">🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...</div>';
+            stage.innerHTML = `
+                <div class="no-signal" id="noSignalText">
+                    🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...
+                    <div style="font-size: 14px; margin-top: 10px; color: var(--text-muted);">
+                        🔑 第一次使用？請先點擊右上角「設定金鑰」填入您的 Groq API Key。
+                    </div>
+                </div>
+            `;
         }
 
         function createDictRowElement(key = '', val = '') {

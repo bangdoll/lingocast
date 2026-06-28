@@ -10,7 +10,8 @@ app = None
 error_stack = None
 
 try:
-    from fastapi import FastAPI, File, UploadFile, Request
+    from fastapi import FastAPI, File, UploadFile, Request, Header
+    from typing import Optional
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
     from groq import Groq
@@ -90,9 +91,9 @@ try:
     def has_chinese(text):
         return any('\u4e00' <= char <= '\u9fff' for char in text)
 
-    def translate_text(text: str, custom_dict: dict) -> str:
-        if not groq_client:
-            return "❌ 錯誤: 未配置 GROQ_API_KEY 環境變數。"
+    def translate_text(text: str, custom_dict: dict, client: Groq) -> str:
+        if not client:
+            return "❌ 錯誤: 未配置有效的 Groq API 金鑰。"
             
         is_chinese = has_chinese(text)
         target_lang = "English" if is_chinese else "Traditional Chinese (繁體中文)"
@@ -105,12 +106,12 @@ try:
             "規則：\n"
             "1. 僅輸出翻譯後的結果，不要包含任何解釋、備註、拼音或多餘的標點引號。\n"
             "2. 請遵守以下專有名詞對齊替換字典：" + str(replace_dict) + "\n"
-            "3. 對於以下詞彙，請視為專有名詞，在轉錄和翻譯時必須強制原樣保留，不作任何語系變更或翻譯翻譯：" + str(keep_list) + "\n"
+            "3. 對於以下詞彙，請視為專有名詞，在轉錄和翻譯時必須強制原樣保留，不作 any 語系變更或翻譯：" + str(keep_list) + "\n"
             "4. 翻譯結果必須語意精準、語調自然，符合商務與專業學術論壇場合。"
         )
         
         try:
-            completion = groq_client.chat.completions.create(
+            completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -143,16 +144,33 @@ try:
             return JSONResponse(status_code=400, content={"error": str(e)})
 
     @app.post("/api/translate-audio")
-    async def translate_audio(file: UploadFile = File(...)):
-        if not groq_client:
-            return JSONResponse(status_code=500, content={"error": "GROQ_API_KEY 未設定"})
+    async def translate_audio(
+        file: UploadFile = File(...),
+        x_groq_api_key: Optional[str] = Header(None)
+    ):
+        # 優先使用請求 Header 中帶入的 API 金鑰，若無則使用後端環境變數
+        api_key = x_groq_api_key or GROQ_API_KEY
+        if not api_key:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "未偵測到 Groq API 金鑰。請點選網頁右上角「🔑 設定金鑰」按鈕進行配置。"}
+            )
+            
+        try:
+            # 動態建立該請求的 Groq 客戶端實例
+            client = Groq(api_key=api_key)
+        except Exception as e:
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Groq API 金鑰格式不正確或無效: {str(e)}"}
+            )
             
         try:
             audio_bytes = await file.read()
             if not audio_bytes or len(audio_bytes) < 100:
                 return {"original": "", "translated": ""}
                 
-            transcription = groq_client.audio.transcriptions.create(
+            transcription = client.audio.transcriptions.create(
                 file=("audio.webm", audio_bytes, "audio/webm"),
                 model="whisper-large-v3-turbo",
                 language="zh",
@@ -164,7 +182,7 @@ try:
                 return {"original": "", "translated": ""}
                 
             custom_dict = load_dictionary()
-            translated = translate_text(transcript, custom_dict)
+            translated = translate_text(transcript, custom_dict, client)
             
             return {
                 "original": transcript,
