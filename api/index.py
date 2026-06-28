@@ -298,6 +298,16 @@ try:
         groq_key = x_groq_api_key or GROQ_API_KEY
         openai_key = x_openai_api_key or os.environ.get("OPENAI_API_KEY")
         
+        # 雙保險清理：防止傳入 "null"、"undefined"、空字串或帶有換行空格的無效 Key
+        if groq_key:
+            groq_key = groq_key.strip()
+            if not groq_key or groq_key in ["null", "undefined"] or len(groq_key) < 10:
+                groq_key = None
+        if openai_key:
+            openai_key = openai_key.strip()
+            if not openai_key or openai_key in ["null", "undefined"] or len(openai_key) < 10:
+                openai_key = None
+        
         if not groq_key and not openai_key:
             return JSONResponse(
                 status_code=400,
