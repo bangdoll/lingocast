@@ -7,6 +7,19 @@
 
 ---
 
+## [1.1.0] - 2026-06-28
+
+### 新增 (Added)
+- **GPT-Realtime-Translate 主流程**：新增 `/api/realtime-translation-session`，由後端建立 OpenAI Realtime Translation 短效 `client_secret`。
+- **Realtime 翻譯逐字稿**：`gpt-realtime-translate` 連線時同步接收翻譯 transcript delta，供投屏字幕使用。
+- **WebRTC 語音到語音同譯**：前端 `GPT-Realtime 語音同譯` 模式改為 WebRTC 直連 OpenAI Realtime Translation Calls API，支援翻譯後語音播放。
+- **輸出語言選擇器**：投屏控制列新增輸出語言選單，預設輸出英文。
+
+### 改進 (Improved)
+- **單模型主流程**：Web 產品移除舊片段上傳模式與 `/api/translate-audio`，現階段只使用 `gpt-realtime-translate`。
+- **OpenAI 金鑰診斷更安全**：後端錯誤回傳改用遮罩提示，避免把 API Key 前後綴完整暴露在投屏畫面。
+- **部署環境支援**：`.env.example` 新增 `OPENAI_API_KEY`，可由 Vercel 環境變數供後端換取 Realtime 短效憑證。
+
 ## [1.0.0] - 2026-06-28
 
 ### 新增 (Added)

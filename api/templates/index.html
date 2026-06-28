@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎙️ AI 即時雙語同聲翻譯與大會投屏系統</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%99%EF%B8%8F%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -227,29 +228,6 @@
             z-index: 90;
         }
 
-        .mode-toggle-group {
-            display: flex;
-            background-color: rgba(255, 255, 255, 0.03);
-            padding: 4px;
-            border-radius: 9999px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .mode-btn {
-            padding: 8px 16px;
-            font-size: 13px;
-            background: none;
-            color: var(--text-muted);
-            border-radius: 9999px;
-            box-shadow: none;
-        }
-
-        .mode-btn.active {
-            background-color: rgba(255, 255, 255, 0.08);
-            color: var(--text-main);
-            font-weight: 600;
-        }
-
         .status-badge {
             font-size: 12px;
             color: var(--text-muted);
@@ -367,6 +345,23 @@
             background-color: rgba(255, 255, 255, 0.08);
         }
 
+        .language-select {
+            min-width: 150px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .language-select option {
+            background-color: #111827;
+            color: var(--text-main);
+        }
+
         .btn-icon-delete {
             background-color: rgba(239, 68, 68, 0.1);
             color: var(--accent-red);
@@ -467,21 +462,30 @@
         <!-- 字幕展示區 -->
         <div class="subtitle-stage" id="subtitleStage">
             <div class="no-signal" id="noSignalText">
-                🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...
+                🎙️ 點擊下方錄音按鈕，開始 GPT-Realtime 語音翻譯...
                 <div style="font-size: 14px; margin-top: 10px; color: var(--text-muted);">
-                    🔑 第一次使用？請先點擊右上角「設定金鑰」配置 GPT-Realtime 金鑰。
+                    🔑 第一次使用？請先點擊右上角「設定金鑰」配置 OpenAI API 金鑰。
                 </div>
             </div>
         </div>
 
         <!-- 控制面板 -->
         <div class="controls-wrapper">
-            <div class="mode-toggle-group">
-                <button class="mode-btn" id="modeTalkBtn" onclick="setMode('talk')">手動對講模式</button>
-                <button class="mode-btn active" id="modeStreamBtn" onclick="setMode('stream')">GPT-Realtime 串流同譯</button>
-            </div>
-
-            <div style="display: flex; gap: 15px;">
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <select id="targetLanguageSelect" class="language-select" aria-label="輸出語言">
+                    <option value="en" selected>輸出 English</option>
+                    <option value="ja">輸出 日本語</option>
+                    <option value="ko">輸出 한국어</option>
+                    <option value="zh">輸出 中文</option>
+                    <option value="es">輸出 Español</option>
+                    <option value="fr">輸出 Français</option>
+                    <option value="de">輸出 Deutsch</option>
+                    <option value="it">輸出 Italiano</option>
+                    <option value="pt">輸出 Português</option>
+                    <option value="vi">輸出 Tiếng Việt</option>
+                    <option value="id">輸出 Bahasa Indonesia</option>
+                    <option value="hi">輸出 हिन्दी</option>
+                </select>
                 <button class="btn-primary" id="recordBtn" onclick="toggleRecording()">
                     <span id="recordIcon">⏺️</span> <span id="recordText">開始錄音</span>
                 </button>
@@ -528,7 +532,7 @@
             
             <div style="padding: 15px 0;">
                 <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; line-height: 1.5;">
-                    金鑰將**僅保存在您的本地瀏覽器 (localStorage)** 中，不會上傳或存儲於伺服器。每次同譯時，前端會動態將此金鑰傳遞給 API，以完全保護您的金鑰隱私。
+                    金鑰會保存在您的本地瀏覽器 (localStorage)。啟動 Realtime 時，系統會把 OpenAI 金鑰送至本站後端換取短效 client secret，不會將完整金鑰寫入伺服器檔案。
                 </p>
                 
                 <!-- OpenAI Key Input -->
@@ -543,17 +547,6 @@
                     </p>
                 </div>
 
-                <!-- Groq Key Input -->
-                <div>
-                    <label style="display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 5px; font-weight: bold;">Groq API 金鑰（免費額度，低延遲）</label>
-                    <div style="display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);">
-                        <input type="password" id="apiKeyInput" placeholder="gsk_..." style="flex: 1; background: transparent; border: none; color: white; font-size: 16px; outline: none; box-shadow: none;">
-                        <button id="toggleVisibleBtn" onclick="toggleKeyVisibility()" style="background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer;">👁️</button>
-                    </div>
-                    <p style="font-size: 12px; color: var(--primary); margin-top: 5px; margin-bottom: 0;">
-                        💡 尚未擁有金鑰？請至 <a href="https://console.groq.com/" target="_blank" style="color: var(--primary); text-decoration: underline; cursor: pointer;">console.groq.com</a> 免費申請。
-                    </p>
-                </div>
             </div>
 
             <div class="modal-footer">
@@ -564,11 +557,12 @@
     </div>
 
     <script>
-        let mediaRecorder = null;
-        let audioChunks = [];
         let isRecording = false;
-        let recordingMode = 'stream'; // 'talk' or 'stream'
-        let streamInterval = null;
+        let realtimePeerConnection = null;
+        let realtimeDataChannel = null;
+        let realtimeAudioElement = null;
+        let localAudioStream = null;
+        let realtimeSubtitleState = { original: '', translated: '' };
         const host = window.location.origin;
 
         // 初始化加載字典
@@ -584,16 +578,6 @@
         }
         fetchDictionary();
 
-        function setMode(mode) {
-            if (isRecording) {
-                alert("請先停止錄音再切換模式。");
-                return;
-            }
-            recordingMode = mode;
-            document.getElementById('modeTalkBtn').classList.toggle('active', mode === 'talk');
-            document.getElementById('modeStreamBtn').classList.toggle('active', mode === 'stream');
-        }
-
         async function toggleRecording() {
             if (isRecording) {
                 stopRecording();
@@ -603,69 +587,152 @@
         }
 
         async function startRecording() {
+            await startRealtimeTranslation();
+        }
+
+        async function startRealtimeTranslation() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 isRecording = true;
-                audioChunks = [];
-                
-                // 設定 UI
+                realtimeSubtitleState = { original: '', translated: '' };
                 document.getElementById('recordBtn').className = 'btn-danger';
                 document.getElementById('recordIcon').innerText = '⏹️';
                 document.getElementById('recordText').innerText = '停止錄音';
                 document.getElementById('statusDot').className = 'status-dot active';
-                document.getElementById('statusText').innerText = '錄音進行中';
+                document.getElementById('statusText').innerText = '建立 Realtime 翻譯連線中';
                 document.getElementById('waveContainer').classList.add('active');
-                document.getElementById('noSignalText').innerText = '正在監聽您的聲音...';
+                const noSignal = document.getElementById('noSignalText');
+                if (noSignal) noSignal.innerText = '正在啟動 GPT-Realtime-Translate...';
 
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-                
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    if (audioBlob.size > 1000) { // 避免過小的雜音檔案
-                        await uploadAndTranslate(audioBlob);
-                    }
-                    audioChunks = [];
-                };
-
-                mediaRecorder.start();
-
-                // 如果是連續模式，每 5 秒停止並重啟以進行切片上傳
-                if (recordingMode === 'stream') {
-                    streamInterval = setInterval(() => {
-                        if (mediaRecorder && mediaRecorder.state === "recording") {
-                            mediaRecorder.stop();
-                            mediaRecorder.start();
-                        }
-                    }, 5000);
+                const targetLanguage = document.getElementById('targetLanguageSelect').value || 'en';
+                const userOpenAIKey = localStorage.getItem('openai_api_key') || '';
+                const sessionHeaders = { "Content-Type": "application/json" };
+                if (userOpenAIKey) {
+                    sessionHeaders['X-OpenAI-API-Key'] = userOpenAIKey;
                 }
 
+                const sessionRes = await fetch(`${host}/api/realtime-translation-session`, {
+                    method: "POST",
+                    headers: sessionHeaders,
+                    body: JSON.stringify({ target_language: targetLanguage })
+                });
+                const sessionData = await sessionRes.json().catch(() => ({}));
+                if (!sessionRes.ok) {
+                    const errMsg = sessionData.error || `HTTP 錯誤 ${sessionRes.status}`;
+                    const keyHint = sessionData.key_hint ? ` ${sessionData.key_hint}` : '';
+                    throw new Error(`${errMsg}${keyHint}`);
+                }
+
+                const clientSecret = sessionData.value || (sessionData.client_secret && sessionData.client_secret.value);
+                if (!clientSecret) {
+                    throw new Error("OpenAI 未回傳 Realtime client_secret。");
+                }
+
+                localAudioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                realtimePeerConnection = new RTCPeerConnection();
+                realtimeAudioElement = document.createElement('audio');
+                realtimeAudioElement.autoplay = true;
+                realtimePeerConnection.ontrack = event => {
+                    realtimeAudioElement.srcObject = event.streams[0];
+                };
+                realtimePeerConnection.onconnectionstatechange = () => {
+                    const state = realtimePeerConnection ? realtimePeerConnection.connectionState : 'closed';
+                    if (state === 'connected') {
+                        document.getElementById('statusText').innerText = 'Realtime 語音翻譯中';
+                    } else if (['failed', 'disconnected', 'closed'].includes(state) && isRecording) {
+                        document.getElementById('statusText').innerText = `Realtime 連線狀態: ${state}`;
+                    }
+                };
+
+                localAudioStream.getAudioTracks().forEach(track => {
+                    realtimePeerConnection.addTrack(track, localAudioStream);
+                });
+
+                realtimeDataChannel = realtimePeerConnection.createDataChannel("oai-events");
+                realtimeDataChannel.onmessage = event => handleRealtimeTranslationEvent(event.data);
+
+                const offer = await realtimePeerConnection.createOffer();
+                await realtimePeerConnection.setLocalDescription(offer);
+
+                const sdpRes = await fetch("https://api.openai.com/v1/realtime/translations/calls", {
+                    method: "POST",
+                    body: offer.sdp,
+                    headers: {
+                        "Authorization": `Bearer ${clientSecret}`,
+                        "Content-Type": "application/sdp"
+                    }
+                });
+                if (!sdpRes.ok) {
+                    const errorText = await sdpRes.text();
+                    throw new Error(`Realtime WebRTC 連線失敗 (${sdpRes.status}): ${errorText}`);
+                }
+
+                await realtimePeerConnection.setRemoteDescription({
+                    type: "answer",
+                    sdp: await sdpRes.text()
+                });
+                document.getElementById('statusText').innerText = 'Realtime 語音翻譯中';
             } catch (err) {
-                console.error("無法存取麥克風", err);
-                alert("請允許網頁存取您的麥克風以進行錄音。");
-                stopRecording();
+                console.error("Realtime 翻譯啟動失敗", err);
+                renderSubtitle("❌ Realtime 翻譯服務異常", `${err.message} (請確認 OpenAI 金鑰有效，且專案可使用 gpt-realtime-translate)`);
+                stopRealtimeTranslation();
             }
         }
 
-        function stopRecording() {
-            isRecording = false;
-            if (streamInterval) {
-                clearInterval(streamInterval);
-                streamInterval = null;
-            }
-            
-            if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop();
-                // 關閉麥克風流
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        function handleRealtimeTranslationEvent(rawEvent) {
+            let event;
+            try {
+                event = JSON.parse(rawEvent);
+            } catch (e) {
+                return;
             }
 
-            // 還原 UI
+            if (event.type === 'error') {
+                const message = event.error && event.error.message ? event.error.message : JSON.stringify(event);
+                renderSubtitle("❌ Realtime 事件錯誤", message);
+                return;
+            }
+
+            const inputDelta = [event.delta, event.transcript_delta, event.text_delta, event.transcript]
+                .find(value => typeof value === 'string' && value.length > 0) || '';
+            if (event.type && event.type.includes('input') && event.type.includes('transcript') && inputDelta) {
+                updateRealtimeSubtitle('original', inputDelta);
+                return;
+            }
+
+            if (event.type && event.type.includes('output') && event.type.includes('transcript') && inputDelta) {
+                updateRealtimeSubtitle('translated', inputDelta);
+            }
+        }
+
+        function updateRealtimeSubtitle(field, delta) {
+            realtimeSubtitleState[field] += delta;
+            const original = realtimeSubtitleState.original || '正在聆聽原文...';
+            const translated = realtimeSubtitleState.translated || '正在產生翻譯語音...';
+            renderSubtitle(original, translated, true);
+        }
+
+        function stopRealtimeTranslation() {
+            isRecording = false;
+            if (realtimeDataChannel) {
+                realtimeDataChannel.close();
+                realtimeDataChannel = null;
+            }
+            if (realtimePeerConnection) {
+                realtimePeerConnection.close();
+                realtimePeerConnection = null;
+            }
+            if (localAudioStream) {
+                localAudioStream.getTracks().forEach(track => track.stop());
+                localAudioStream = null;
+            }
+            realtimeAudioElement = null;
             document.getElementById('recordBtn').className = 'btn-primary';
             document.getElementById('recordIcon').innerText = '⏺️';
             document.getElementById('recordText').innerText = '開始錄音';
@@ -674,59 +741,24 @@
             document.getElementById('waveContainer').classList.remove('active');
         }
 
-        async function uploadAndTranslate(blob) {
-            document.getElementById('statusText').innerText = 'AI 轉譯翻譯中...';
-            const formData = new FormData();
-            formData.append("file", blob, "recording.webm");
-
-            try {
-                const userApiKey = localStorage.getItem('groq_api_key') || '';
-                const userOpenAIKey = localStorage.getItem('openai_api_key') || '';
-                const headers = {};
-                if (userApiKey) {
-                    headers['X-Groq-API-Key'] = userApiKey;
-                }
-                if (userOpenAIKey) {
-                    headers['X-OpenAI-API-Key'] = userOpenAIKey;
-                }
-
-                const res = await fetch(`${host}/api/translate-audio`, {
-                    method: "POST",
-                    headers: headers,
-                    body: formData
-                });
-                
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    const errMsg = errData.error || `HTTP 錯誤 ${res.status}`;
-                    renderSubtitle("❌ 翻譯服務異常", `${errMsg} (請確認是否已點選右上角「🔑 設定金鑰」配置了有效的金鑰)`);
-                    return;
-                }
-                
-                const data = await res.json();
-                if (data.error) {
-                    renderSubtitle("❌ 翻譯服務異常", `${data.error} (請確認是否已點選右上角「🔑 設定金鑰」配置了有效的金鑰)`);
-                } else if (data.original && data.translated) {
-                    renderSubtitle(data.original, data.translated);
-                }
-            } catch (e) {
-                console.error("翻譯請求失敗", e);
-                renderSubtitle("❌ 網路連線異常", `無法連線至翻譯伺服器: ${e.message}`);
-            } finally {
-                if (isRecording) {
-                    document.getElementById('statusText').innerText = '錄音進行中';
-                } else {
-                    document.getElementById('statusText').innerText = '系統就緒';
-                }
-            }
+        function stopRecording() {
+            stopRealtimeTranslation();
         }
 
-        function renderSubtitle(original, translated) {
+        function renderSubtitle(original, translated, replaceLatest = false) {
             const stage = document.getElementById('subtitleStage');
             
             // 移除 no signal 文字
             const noSignal = document.getElementById('noSignalText');
             if (noSignal) noSignal.remove();
+
+            if (replaceLatest && stage.lastElementChild) {
+                stage.lastElementChild.innerHTML = `
+                    <div class="sub-original">${original}</div>
+                    <div class="sub-translated">${translated}</div>
+                `;
+                return;
+            }
 
             // 建立字幕盒
             const box = document.createElement('div');
@@ -748,27 +780,12 @@
             const overlay = document.getElementById('keyModalOverlay');
             overlay.classList.add('active');
             
-            const savedGroqKey = localStorage.getItem('groq_api_key') || '';
-            document.getElementById('apiKeyInput').value = savedGroqKey;
-            
             const savedOpenAIKey = localStorage.getItem('openai_api_key') || '';
             document.getElementById('openaiKeyInput').value = savedOpenAIKey;
         }
 
         function closeKeyModal() {
             document.getElementById('keyModalOverlay').classList.remove('active');
-        }
-
-        function toggleKeyVisibility() {
-            const input = document.getElementById('apiKeyInput');
-            const btn = document.getElementById('toggleVisibleBtn');
-            if (input.type === 'password') {
-                input.type = 'text';
-                btn.innerText = '🔒';
-            } else {
-                input.type = 'password';
-                btn.innerText = '👁️';
-            }
         }
 
         function toggleOpenAIKeyVisibility() {
@@ -784,9 +801,6 @@
         }
 
         function saveApiKey() {
-            const groqKey = document.getElementById('apiKeyInput').value.trim();
-            localStorage.setItem('groq_api_key', groqKey);
-            
             const openaiKey = document.getElementById('openaiKeyInput').value.trim();
             localStorage.setItem('openai_api_key', openaiKey);
             
@@ -817,9 +831,9 @@
             const stage = document.getElementById('subtitleStage');
             stage.innerHTML = `
                 <div class="no-signal" id="noSignalText">
-                    🎙️ 點擊下方錄音按鈕，開始即時同聲翻譯...
+                    🎙️ 點擊下方錄音按鈕，開始 GPT-Realtime 語音翻譯...
                     <div style="font-size: 14px; margin-top: 10px; color: var(--text-muted);">
-                        🔑 第一次使用？請先點擊右上角「設定金鑰」配置 GPT-Realtime 金鑰。
+                        🔑 第一次使用？請先點擊右上角「設定金鑰」配置 OpenAI API 金鑰。
                     </div>
                 </div>
             `;

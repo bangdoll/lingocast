@@ -10,11 +10,10 @@ app = None
 error_stack = None
 
 try:
-    from fastapi import FastAPI, File, UploadFile, Request, Header
+    from fastapi import FastAPI, Request, Header
     from typing import Optional
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
-    from groq import Groq
     
     # 嘗試防禦性載入 dotenv
     try:
@@ -26,15 +25,6 @@ try:
         pass
 
     BASE_DIR = Path(__file__).parent
-    GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-    
-    # 防禦性初始化 Groq
-    groq_client = None
-    if GROQ_API_KEY:
-        try:
-            groq_client = Groq(api_key=GROQ_API_KEY)
-        except Exception as e:
-            print(f"⚠️ Groq 客戶端初始化失敗: {e}")
 
     # 100% 原生簡繁體對照表（覆蓋 1200+ 核心常用與口語字元）
     SIMPLIFIED = (
@@ -182,6 +172,21 @@ try:
     DICT_PATH = BASE_DIR / "dict.json"
     TEMPLATE_PATH = BASE_DIR / "templates" / "index.html"
     _memory_dict = {}
+    COMMON_TRANSLATION_OUTPUT_LANGUAGES = {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "zh": "Chinese",
+        "hi": "Hindi",
+        "id": "Indonesian",
+        "vi": "Vietnamese",
+        "ru": "Russian",
+    }
 
     def load_dictionary():
         global _memory_dict
@@ -204,68 +209,20 @@ try:
         except OSError as e:
             print(f"⚠️ 無法寫入字典設定檔（可能為 Serverless 唯讀磁碟環境）: {e}")
 
-    def has_chinese(text):
-        return any('\u4e00' <= char <= '\u9fff' for char in text)
+    def normalize_api_key(raw_key: Optional[str]) -> Optional[str]:
+        if not raw_key:
+            return None
+        key = raw_key.strip()
+        if not key or key in ["null", "undefined"] or len(key) < 10:
+            return None
+        return key
 
-    def translate_text(text: str, custom_dict: dict, client: Groq, openai_key: str = None) -> str:
-        is_chinese = has_chinese(text)
-        target_lang = "English" if is_chinese else "Traditional Chinese (繁體中文)"
-        
-        replace_dict = {k: v for k, v in custom_dict.items() if v}
-        keep_list = [k for k, v in custom_dict.items() if not v]
-        
-        system_prompt = (
-            f"你是一位專業的高階同聲傳譯官。請將輸入的文字即時翻譯為 {target_lang}。\n"
-            "規則：\n"
-            "1. 僅輸出翻譯後的結果，不要包含任何解釋、備註、拼音或多餘的標點引號。\n"
-            "2. 請遵守以下專有名詞對齊替換字典：" + str(replace_dict) + "\n"
-            "3. 對於以下詞彙，請視為專有名詞，在轉錄和翻譯時必須強制原樣保留，不作 any 語系變更或翻譯：" + str(keep_list) + "\n"
-            "4. 翻譯結果必須語意精準、語調自然，符合商務與專業學術論壇場合。"
-        )
-
-        # 優先使用 OpenAI 進行翻譯
-        if openai_key:
-            headers = {
-                "Authorization": f"Bearer {openai_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "gpt-4o",  # 使用 OpenAI 旗艦大語言模型保障翻譯極致精準
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text}
-                ],
-                "temperature": 0.2
-            }
-            try:
-                import requests
-                resp = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10)
-                if resp.status_code == 200:
-                    result = resp.json()["choices"][0]["message"]["content"].strip()
-                    return convert_to_traditional(result)
-                else:
-                    err_msg = resp.json().get("error", {}).get("message", resp.text)
-                    return f"OpenAI 翻譯失敗 ({resp.status_code}): {err_msg}"
-            except Exception as e:
-                return f"OpenAI 連線超時: {str(e)}"
-        
-        # 兜底使用 Groq
-        if not client:
-            return "❌ 錯誤: 未配置有效的 API 金鑰。"
-            
-        try:
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text}
-                ],
-                temperature=0.2
-            )
-            translated_result = completion.choices[0].message.content.strip()
-            return convert_to_traditional(translated_result)
-        except Exception as e:
-            return f"翻譯失敗: {str(e)}"
+    def mask_api_key(key: Optional[str]) -> str:
+        if not key:
+            return "None"
+        if len(key) <= 12:
+            return "*" * len(key)
+        return f"{key[:7]}...{key[-4:]}"
 
     @app.get("/", response_class=HTMLResponse)
     async def get_index():
@@ -286,99 +243,78 @@ try:
         except Exception as e:
             return JSONResponse(status_code=400, content={"error": str(e)})
 
-    @app.post("/api/translate-audio")
-    async def translate_audio(
-        file: UploadFile = File(...),
-        x_groq_api_key: Optional[str] = Header(None),
+    @app.post("/api/realtime-translation-session")
+    async def create_realtime_translation_session(
+        req: Request,
         x_openai_api_key: Optional[str] = Header(None)
     ):
         import requests
-        
-        # 優先讀取請求 Header 中的金鑰，其次為系統環境變數
-        groq_key = x_groq_api_key or GROQ_API_KEY
-        openai_key = x_openai_api_key or os.environ.get("OPENAI_API_KEY")
-        
-        # 雙保險清理：防止傳入 "null"、"undefined"、空字串或帶有換行空格的無效 Key
-        if groq_key:
-            groq_key = groq_key.strip()
-            if not groq_key or groq_key in ["null", "undefined"] or len(groq_key) < 10:
-                groq_key = None
-        if openai_key:
-            openai_key = openai_key.strip()
-            if not openai_key or openai_key in ["null", "undefined"] or len(openai_key) < 10:
-                openai_key = None
-        
-        if not groq_key and not openai_key:
+
+        openai_key = normalize_api_key(x_openai_api_key) or normalize_api_key(os.environ.get("OPENAI_API_KEY"))
+        if not openai_key:
             return JSONResponse(
                 status_code=400,
-                content={"error": "未偵測到金鑰。請點選網頁右上角「🔑 設定金鑰」按鈕配置 Groq 或 OpenAI API 金鑰。"}
+                content={"error": "未偵測到 OpenAI API 金鑰。請在右上角「🔑 設定金鑰」填入有效金鑰，或於部署環境設定 OPENAI_API_KEY。"}
             )
-            
+
         try:
-            audio_bytes = await file.read()
-            if not audio_bytes or len(audio_bytes) < 100:
-                return {"original": "", "translated": ""}
-                
-            transcript = ""
-            client = None
-            
-            # 優先走 OpenAI 雙引擎 (Whisper-1 + GPT-4o)
-            if openai_key:
-                try:
-                    headers = {"Authorization": f"Bearer {openai_key}"}
-                    files = {
-                        "file": ("recording.webm", audio_bytes, "audio/webm"),
-                        "model": (None, "whisper-1"),
-                        "language": (None, "zh")
+            body = await req.json()
+        except Exception:
+            body = {}
+
+        target_language = str(body.get("target_language") or "en").strip().lower()
+        if not re.match(r"^[a-z]{2,3}(-[a-z0-9]+)?$", target_language):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "輸出語言格式不正確，請使用 BCP-47/ISO 語言代碼，例如 en、ja、ko、es、fr、zh。",
+                    "common_languages": COMMON_TRANSLATION_OUTPUT_LANGUAGES
+                }
+            )
+
+        payload = {
+            "session": {
+                "model": "gpt-realtime-translate",
+                "audio": {
+                    "output": {
+                        "language": target_language
                     }
-                    resp = requests.post(
-                        "https://api.openai.com/v1/audio/transcriptions",
-                        files=files,
-                        headers=headers,
-                        timeout=15
-                    )
-                    if resp.status_code == 200:
-                        transcript = convert_to_traditional(resp.json().get("text", "").strip())
-                    else:
-                        err_msg = resp.json().get("error", {}).get("message", resp.text)
-                        # 自癒診斷：將金鑰的長度與掩碼輸出，方便用戶核對是否為舊 Key 或傳輸殘留
-                        key_len = len(openai_key) if openai_key else 0
-                        key_prefix = openai_key[:12] if openai_key else 'None'
-                        key_suffix = openai_key[-6:] if openai_key else 'None'
-                        diag_msg = f"{err_msg} [金鑰診斷 - 長度: {key_len}, 前綴: {key_prefix}, 後綴: {key_suffix}]"
-                        return JSONResponse(
-                            status_code=400,
-                            content={"error": f"OpenAI 轉錄失敗 ({resp.status_code}): {diag_msg}"}
-                        )
-                except Exception as e:
-                    return JSONResponse(status_code=500, content={"error": f"連線 OpenAI 語音轉文字超時: {str(e)}"})
-            
-            # 否則走 Groq 雙引擎 (Whisper + Llama 3)
-            else:
-                try:
-                    client = Groq(api_key=groq_key)
-                    transcription = client.audio.transcriptions.create(
-                        file=("audio.webm", audio_bytes, "audio/webm"),
-                        model="whisper-large-v3-turbo",
-                        language="zh",
-                        response_format="verbose_json"
-                    )
-                    transcript = convert_to_traditional(transcription.text.strip())
-                except Exception as e:
-                    return JSONResponse(status_code=400, content={"error": f"Groq 轉錄失敗: {str(e)}"})
-            
-            if not transcript:
-                return {"original": "", "translated": ""}
-                
-            custom_dict = load_dictionary()
-            translated = translate_text(transcript, custom_dict, client, openai_key)
-            
-            return {
-                "original": transcript,
-                "translated": translated
+                }
             }
+        }
+
+        try:
+            resp = requests.post(
+                "https://api.openai.com/v1/realtime/translations/client_secrets",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {openai_key}",
+                    "Content-Type": "application/json",
+                    "OpenAI-Safety-Identifier": "lingocast-browser-realtime"
+                },
+                timeout=15
+            )
         except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            return JSONResponse(
+                status_code=502,
+                content={"error": f"連線 OpenAI Realtime Translation 失敗: {str(e)}"}
+            )
+
+        if resp.status_code >= 400:
+            try:
+                err_payload = resp.json()
+                err_msg = err_payload.get("error", {}).get("message") or resp.text
+            except Exception:
+                err_msg = resp.text
+            return JSONResponse(
+                status_code=resp.status_code,
+                content={
+                    "error": f"OpenAI Realtime Translation 建立失敗 ({resp.status_code}): {err_msg}",
+                    "key_hint": f"目前送出的金鑰遮罩: {mask_api_key(openai_key)}"
+                }
+            )
+
+        return resp.json()
 
 except Exception as e:
     # 捕獲 Module 級別啟動崩潰，建立備用偵錯 App

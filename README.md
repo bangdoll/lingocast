@@ -9,9 +9,10 @@
 ## ✨ 核心功能
 
 - **🎙️ 網頁端免驅動錄音**：投影用的電腦無需安裝任何特殊的音效驅動或進行繁瑣的麥克風設定。只需打開瀏覽器，授權麥克風存取，即可立即開始發音並投影。
-- **⚡ 雙引擎極速同譯管道**：
-  - **語音轉文字 (STT)**：基於 Groq 雲端託管的 `whisper-large-v3-turbo`，實現毫秒級語音轉譯。
-  - **雙語翻譯 (LLM)**：基於 `llama-3.3-70b-versatile`，生成符合語境、中英上下排版對照的流暢大字幕。
+- **⚡ GPT-Realtime 語音到語音翻譯管道**：
+  - **即時語音翻譯 (Speech-to-Speech Translation)**：主流程基於 OpenAI `gpt-realtime-translate`，可讓一人說中文，另一人即時聽到英文或其他輸出語言。
+  - **即時字幕輸出**：同一條 Realtime Translation 連線會同步輸出翻譯逐字稿，適合投屏字幕、即時口譯與會議現場。
+  - **單模型主流程**：Web 產品現階段只使用 `gpt-realtime-translate`，不再併用其他 STT 或 LLM 翻譯模型。
 - **📖 自訂專用語字典安全護欄**：
   - **名詞替換對齊**：可強制將特定詞彙替換為指定術語（如 `Kavira` ➔ `n7 Kavira`、`Agent` ➔ `AI 代理人`）。
   - **單獨名詞原樣保留**：在字典中若只填寫「輸入詞」而將「取代為」留空，系統會將其視為專有名詞，在轉錄與翻譯中**強制原樣保留**，不作任何詞義變更或翻譯。
@@ -30,7 +31,7 @@
 ### 環境要求
 
 - Python 3.10 或更高版本。
-- 一組免費的 Groq API 金鑰（可至 [console.groq.com](https://console.groq.com/) 申請）。
+- 一組 OpenAI API 金鑰，需可使用 Realtime API。
 
 ### 1. 下載專案
 
@@ -53,10 +54,10 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-打開 `.env` 檔案並填入您的 Groq API 金鑰：
+打開 `.env` 檔案並填入您的 OpenAI API 金鑰：
 
 ```env
-GROQ_API_KEY=gsk_您的金鑰_寫在這裡
+OPENAI_API_KEY=sk-proj_您的金鑰_寫在這裡
 ```
 
 ---
@@ -72,7 +73,7 @@ GROQ_API_KEY=gsk_您的金鑰_寫在這裡
 2. 打開瀏覽器訪問以下網址：
    * **本機電腦**：[http://localhost:8090](http://localhost:8090)
    * **跨設備連線（如 iPad、手機、投影主機）**：`http://<您的 Mac 區域網 IP>:8090`（需在同一區域網內）。
-3. 允許麥克風權限，選擇「手動對講」或「連續投屏」模式，即可開始投影！
+3. 允許麥克風權限，選擇輸出語言後按「開始錄音」，即可啟動 GPT-Realtime 語音同譯與字幕投屏。
 
 ### 方案 B：CLI 終端機版
 
