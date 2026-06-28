@@ -631,13 +631,23 @@
                     method: "POST",
                     body: formData
                 });
-                const data = await res.json();
                 
-                if (data.original && data.translated) {
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    const errMsg = errData.error || `HTTP 錯誤 ${res.status}`;
+                    renderSubtitle("❌ 翻譯服務異常", `${errMsg} (請確認 Vercel 專案設定中是否已配置 GROQ_API_KEY)`);
+                    return;
+                }
+                
+                const data = await res.json();
+                if (data.error) {
+                    renderSubtitle("❌ 翻譯服務異常", `${data.error} (請確認 Vercel 專案設定中是否已配置 GROQ_API_KEY)`);
+                } else if (data.original && data.translated) {
                     renderSubtitle(data.original, data.translated);
                 }
             } catch (e) {
                 console.error("翻譯請求失敗", e);
+                renderSubtitle("❌ 網路連線異常", `無法連線至翻譯伺服器: ${e.message}`);
             } finally {
                 if (isRecording) {
                     document.getElementById('statusText').innerText = '錄音進行中';
