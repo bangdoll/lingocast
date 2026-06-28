@@ -33,16 +33,28 @@ BASE_DIR = Path(__file__).parent
 DICT_PATH = BASE_DIR / "dict.json"
 TEMPLATE_PATH = BASE_DIR / "templates" / "index.html"
 
+_memory_dict = {}
+
 def load_dictionary():
+    global _memory_dict
+    if _memory_dict:
+        return _memory_dict
     if DICT_PATH.exists():
         try:
-            return json.loads(DICT_PATH.read_text(encoding="utf-8"))
+            dct = json.loads(DICT_PATH.read_text(encoding="utf-8"))
+            _memory_dict = dct
+            return dct
         except Exception:
             pass
     return {}
 
 def save_dictionary(dct):
-    DICT_PATH.write_text(json.dumps(dct, ensure_ascii=False, indent=2), encoding="utf-8")
+    global _memory_dict
+    _memory_dict = dct
+    try:
+        DICT_PATH.write_text(json.dumps(dct, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError as e:
+        print(f"⚠️ 無法寫入字典設定檔（可能為 Serverless 唯讀磁碟環境）: {e}")
 
 def has_chinese(text):
     return any('\u4e00' <= char <= '\u9fff' for char in text)
