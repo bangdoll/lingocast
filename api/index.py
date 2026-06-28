@@ -14,7 +14,12 @@ load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+groq_client = None
+if GROQ_API_KEY:
+    try:
+        groq_client = Groq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        print(f"⚠️ Groq 客戶端初始化失敗（可忽略）: {e}")
 
 try:
     from opencc import OpenCC
