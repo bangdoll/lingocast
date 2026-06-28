@@ -67,7 +67,7 @@ GROQ_API_KEY=gsk_您的金鑰_寫在這裡
 
 1. 在終端機啟動 FastAPI 後端服務：
    ```bash
-   python app.py
+   python api/index.py
    ```
 2. 打開瀏覽器訪問以下網址：
    * **本機電腦**：[http://localhost:8090](http://localhost:8090)
@@ -93,7 +93,7 @@ GROQ_API_KEY=gsk_您的金鑰_寫在這裡
 
 您可以透過兩種方式管理字典：
 1. **網頁 UI 編輯**：點選網頁右上角的 **「⚙️ 自訂字典」** 按鈕，即可彈出編輯視窗。
-2. **直接修改設定檔**：在專案根目錄下直接編輯 `dict.json` 檔案：
+2. **直接修改設定檔**：在專案 `api/` 目錄下直接編輯 `dict.json` 檔案：
    ```json
    {
      "Kavira": "n7 Kavira",     // 將 "Kavira" 強制替換為 "n7 Kavira"
